@@ -1,9 +1,13 @@
-import cv2
 import time
+
+import cv2
+
+
+# TODO: Clear frame buffer if in live mode
 
 class Webcam:
     def __init__(self, source, frame_rate):
-        self.camera =  cv2.VideoCapture(source)
+        self.camera = cv2.VideoCapture(source)
         self.frame_rate = frame_rate
         self.live = True
         if type(source) is str:

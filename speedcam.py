@@ -9,17 +9,22 @@
    vision methods in the original carspeed.py
 """
 
-import math
 import datetime
-import cv2
+import math
 import time
+
+import cv2
+
+from webcam import Webcam
+
 
 # place a prompt on the displayed image
 def prompt_on_image(txt):
     global image
     cv2.putText(image, txt, (10, 35),
-    cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 0, 255), 1)
-     
+                cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 0, 255), 1)
+
+
 # calculate speed from pixels and time
 def get_speed(pixels, ftperpixel, secs):
     if secs > 0.0:
@@ -60,33 +65,9 @@ def draw_rectangle(event,x,y,flags,param):
         prompt_on_image(prompt)
         cv2.rectangle(image,(ix,iy),(fx,fy),(0,255,0),2)
 
-def init_webcam(resolution):
-    #cap = cv2.VideoCapture(0)
-    cap = cv2.VideoCapture("calibrated.avi")
-    #pygame.init()
-    #pygame.camera.init()
-    #cam = pygame.camera.Camera("/dev/video0",resolution)
-    #cam.start()
-    #cam.stop()
-    #cam.start()
-    return cap
-
-def get_webcam_image(camera, surface):
-    #camera.start()
-    surface = camera.get_image(surface)
-    image = pygame.surfarray.array3d(surface)
-    image = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
-    #camera.stop()
-    #surface = np.swapaxes(surface, 0,1)
-    return surface, image
-
-def get_opencv_image(cap):
-    ret, frame = cap.read()
-    return frame
-
 # define some constants
-DISTANCE = 60  #<---- enter your distance-to-road value here
-MIN_SPEED = 10  #<---- enter the minimum speed for saving images
+DISTANCE = 40  # <---- enter your distance-to-road value here
+MIN_SPEED = 10  # <---- enter the minimum speed for saving images
 SAVE_CSV = False  #<---- record the results in .csv format in carspeed_(date).csv
 
 THRESHOLD = 15
@@ -145,20 +126,7 @@ tracking = False
 text_on_image = 'No cars'
 prompt = ''
 
-# initialize the camera. Adjust vflip and hflip to reflect your camera's orientation
-#camera = PiCamera()
-#camera.resolution = RESOLUTION
-#camera.framerate = FPS
-#camera.vflip = True
-#camera.hflip = True
-
-#rawCapture = PiRGBArray(camera, size=camera.resolution)
-# allow the camera to warm up
-#time.sleep(0.9)
-
-camera = init_webcam(RESOLUTION)
-#display = pygame.display.set_mode(RESOLUTION, 0)
-#surface = pygame.surface.Surface(RESOLUTION, 0)
+webcam = Webcam("calibrated.avi", FPS)
 
 # create an image window and place it in the upper left corner of the screen
 cv2.namedWindow("Speed Camera")
@@ -168,13 +136,7 @@ cv2.moveWindow("Speed Camera", 10, 40)
 cv2.setMouseCallback('Speed Camera',draw_rectangle)
  
 # grab a reference image to use for drawing the monitored area's boundry
-#camera.start()
-#surface, image = get_webcam_image(camera, surface)
-image = get_opencv_image(camera)
-#camera.stop()
-#camera.capture(rawCapture, format="bgr", use_video_port=True)
-#image = rawCapture.array
-#rawCapture.truncate(0)
+image = webcam.get_image()
 org_image = image.copy()
 
 if SAVE_CSV:
