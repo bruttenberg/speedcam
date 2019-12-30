@@ -18,3 +18,6 @@ class Webcam:
         if self.live is False:
             time.sleep(1 / self.frame_rate)
         return frame
+
+    def cleanup(self):
+        self.camera.release()
