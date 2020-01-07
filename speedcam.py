@@ -72,7 +72,7 @@ def draw_rectangle(event,x,y,flags,param):
 # Distance from the camera to "cars", in meters
 # Note depending on the distance of the camera to the road, you might get different speeds depending on the direction
 # of the traffic.
-DISTANCE_METERS = 13.7
+DISTANCE_METERS = 18
 
 # Minumum speed to record
 MIN_KPH = 20

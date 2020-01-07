@@ -1,26 +1,50 @@
+import numpy as np
+from cv2 import KalmanFilter
+from sortedcontainers import SortedDict
 
 M = 3
 N = 4
 RETIRE_COUNT = 3
 ASSOCIATION_RADIUS = 1
 
+
 class Track:
     def __init__(self, position, velocity):
-        self.position = position
-        self.velocity = velocity
+        self.kf = KalmanFilter(2, 1, 0)
+        self.kf.statePost = np.array([[position], [velocity]])
+        self.kf.errorCovPost = 1. * np.ones((2, 2))
+        self.kf.transitionMatrix = np.array([[1., 1.], [0., 1.]])
+        self.kf.measurementMatrix = 1. * np.ones((1, 2))
+        self.kf.measurementMatrix[0, 1] = 0.
+        self.kf.processNoiseCov = 1e-5 * np.eye(2)
+        self.kf.measurementNoiseCov = 1e-3 * np.ones((1, 1))
+        # self.position = position
+        # self.velocity = velocity
+        # self.old_position = None
         self.m = 1
         self.n = 1
 
+    def position_pre(self):
+        return self.kf.statePre[0, 0]
 
-def update_track(track, obs_position, delta_t):
-    old_position = track.position
-    track.position = (track.position + obs_position) / 2.0
-    track.velocity = (track.position - old_position) / delta_t
+    def velocity_pre(self):
+        return self.kf.statePre[1, 0]
+
+    def position_post(self):
+        return self.kf.statePost[0]
+
+    def velocity_post(self):
+        return self.kf.statePost[1]
+
+
+def update_track(track, obs_position):
+    track.kf.correct(np.array([obs_position]))
     track.m = min(M, track.m + 1) if track.n <= N else M
 
 
 def propagate_track(track, delta_t):
-    track.position = track.position + track.velocity * delta_t
+    track.kf.transitionMatrix[0, 1] = delta_t
+    track.kf.predict()
     track.n += 1
     track.m = track.m - 1 if track.n > N else track.m
 
@@ -40,25 +64,27 @@ class SimpleTracker:
         # Propagate tracks
         [propagate_track(v, delta_t) for v in self.active_tracks.values()]
         assignments = {}
+        taken_tracks = set()
 
         # Associate tracks
         print(observations)
-        #### CHANGE THIS FUNCTION: NEED TO START FROM CLOSEST POINT NOT GREEDY PER OBSERVATION
-        for i in range(len(observations)):
-            distances = {k: abs(observations[i] - v.position) for k, v in self.active_tracks.items()
-                         if abs(observations[i] - v.position) < ASSOCIATION_RADIUS}
-            sorted_distances = {k: v for k, v in sorted(distances.items(), key=lambda item: item[1])}
-            print(sorted_distances)
-            for track_key in sorted_distances.keys():
-                if track_key not in assignments.values():
-                    assignments[i] = track_key
-                    break
+        sorted_distances = SortedDict()
+        for obs in range(len(observations)):
+            for track, v in self.active_tracks.items():
+                distance = abs(observations[obs] - v.position_pre())
+                if distance < ASSOCIATION_RADIUS:
+                    sorted_distances.update({distance: (obs, track)})
+
+        for k, v in sorted_distances.items():
+            if v[0] not in assignments and v[1] not in taken_tracks:
+                assignments[v[0]] = v[1]
+                taken_tracks.add(v[1])
 
         print(assignments)
         # Update tracks that are associated, and create new ones.
         for i in range(len(observations)):
             if i in assignments:
-                update_track(self.active_tracks[assignments[i]], observations[i], delta_t)
+                update_track(self.active_tracks[assignments[i]], observations[i])
             else:
                 self.start_track(observations[i], directions[i])
 
@@ -86,4 +112,4 @@ class SimpleTracker:
     def print_tracks(self):
         if self.active_tracks:
             print("Track, Position, Velocity")
-            [print(k, v.position, v.velocity) for k, v in self.active_tracks.items()]
+            [print(k, v.position_post(), v.velocity_post()) for k, v in self.active_tracks.items()]
